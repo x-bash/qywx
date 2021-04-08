@@ -1,0 +1,308 @@
+# shellcheck shell=sh disable=SC2039
+
+# author:       Li Junhao           edwin.jh.lee@gmail.com    edwinjhlee.github.io
+# maintainer:   Li Tinghui
+
+# if ! declare -f xrc 1>/dev/null;  then
+#     : introduce the boot file
+# fi
+
+xrc param/v0
+
+# Reference
+# https://ding-doc.dingtalk.com/document#/isv-dev-guide/message-types-and-data-format#topic-2618201
+
+qywx_bot(){
+    local op
+    if [ $# -eq 0 ]; then
+        op=help
+    else
+        op="${1}"
+        shift
+    fi
+    case "$op" in
+        endpoint)               http_make       "$@" ;;
+        browse)             http_browse     "$@" ;;
+        dict|property)      http_dict       "$@" ;;
+        cd)                 http_cd         "$@" ;;
+        path)               http_path       "$@" ;;
+        qs)                 http_qs         "$@" ;;
+        header)             http_header     "$@" ;;
+
+        req|request)        http_request    "$@" ;;
+        head)               http_head       "$@" ;;
+        get)                http_get        "$@" ;;
+        post)               http_post       "$@" ;;
+        put)                http_put        "$@" ;;
+        delete)             http_delete     "$@" ;;
+
+        graphql|gq)         http_graphql    "$@" ;;
+
+        resp|response)      http_resp       "$@" ;;
+    esac
+}
+
+dingtalk_bot_endpoint(){
+    local O=${O:-DINGTALK_DEFAULT} 
+    local endpoint
+
+    # set
+    if [ -n "$1" ]; then 
+        param_default put "dingtalk_$O" "endpoint" "$1"
+        return 0
+    fi
+
+    # get
+    endpoint="$(param_default get "dingtalk_$O" "endpoint")"
+    if [ -z "$endpoint" ]; then
+        dingtalk_bot_config load && endpoint="$(param_default get "dingtalk_$O" "endpoint")"
+    fi
+
+    [ -z "$endpoint" ] && return 1
+    echo "$endpoint"
+}
+
+# dingtalk_bot_endpoint "$DINGTALK_ENDPOINT"
+
+dingtalk_bot_make(){
+    local O="${O:-DINGTALK_DEFAULT}"
+
+    # local O=${1:?Provide bot name}
+    # echo $O
+    # echo $1
+
+    if [ -n "$1" ]; then
+        dingtalk_bot_endpoint "$1"
+    fi
+}
+
+# dingtalk_bot_new(){
+#     oo.create_new_function dingtalk.bot "$@"
+# }
+
+dingtalk_bot_config() {
+    local O="${O:-DINGTALK_DEFAULT}"
+    local op="$1"
+    shift
+    local path="${1:-$HOME/.x-cmd.com/config/x-bash/app.dingtalk.config/$O}"
+    case "$op" in
+    which)
+        echo "$HOME/.x-cmd.com/config/x-bash/app.dingtalk.config/$O"
+        ;;
+    save)
+        mkdir -p "$(dirname "$path")"
+        param_default dump "dingtalk_$O" >"$path"
+        echo "Config $O saved in path: $path" >&2
+        ;;
+    load)
+        param_default load "dingtalk_$O" "$path"
+        echo "Config $O load from path: $path" >&2
+        endpoint="$(param_default get "dingtalk_$O" "endpoint")"
+        dingtalk_bot_endpoint "$endpoint"
+        ;;
+    *)
+        echo "Provide config operation type which|save|load"
+        ;;
+    esac
+}
+
+# shellcheck disable=SC2120
+dingtalk_bot_send(){
+    local O=${O:-DINGTALK_DEFAULT}
+    local json="$1"
+    if [ -z "$json" ]; then
+        json="$(cat)"
+    fi
+
+    echo curl "$(dingtalk_bot_endpoint)" \
+        -H 'Content-Type:application/json' \
+        -d "$json"
+
+    # dingtalk.debug curl "$(dingtalk.bot.endpoint)" \
+    #     -H 'Content-Type:application/json' \
+    #     -d "$json"
+}
+
+dingtalk_bot_send_text_msg(){
+    
+    param <<A
+    default     dingtalk___$O
+    --text      "Provide text" =~      *
+    --atall -a  "Notify all member of the group" =FLAG
+A
+
+    # --user=el   -u  "Provide user name"         =~      [A-Za-z0-9]+
+    # --access    -a  "Access Priviledge"         =       public private
+    # --verbose   -v  "Display in verbose mode"   =FLAG
+    # #1          =~      [A-Za-z0-9\n]+
+    # ...         =~      [A-Za-z0-9\n]+
+    # param '
+    #     text       "Provide text" =str
+    #     at=""      "The cell phone number of the person being @ (in the text content should have @ cell phone number)" =~[,] \\+?[0-9]+
+    #     --atall -a "Notify all member of the group"
+    # '
+
+    dingtalk_bot_send << EOM
+'{
+    "msgtype": "text",
+    "text": {
+        "content": "$text"
+    },
+    "at": {
+        "atMobiles": [ ${allMobiles} ],
+        "isAtAll": $atall
+    }
+}'
+EOM
+}
+
+dingtalk_bot_send_link_msg(){
+    param <<A
+    default     dingtalk___$O
+    --title   "Provide title"     =~      *
+    --text    "Provide text"      =~      *
+    --picurl  "Provide picurl"    =~      *
+    --msgurl  "Provide msgurl"    =~      *
+A
+    
+    dingtalk_bot_send << EOM
+'{
+    "msgtype": "link",
+    "link": {
+        "text": "${text}",
+        "title": "${title}",
+        "picUrl": "${picurl}",
+        "messageUrl": "${msgurl}"
+    }
+}'
+EOM
+
+}
+
+dingtalk_bot_send_markdown_msg(){
+    param <<A
+    default     dingtalk___$O
+    --title "Provide title"    =~ *
+    --text  "Provide text"     =~ *
+    --atall -a  "Notify all member of the group" =FLAG
+A
+
+    # TODO: Check this code
+
+    dingtalk_bot_send << EOM
+'{
+    "msgtype": "markdown",
+    "markdown": {
+        "title": "$title",
+        "text":  "$text"
+    },
+    "at": {
+        "atMobiles": [ ${allMobiles} ],
+        "isAtAll": $atall
+    }
+}'
+EOM
+}
+
+dingtalk_bot_send_action_card_msg(){
+    param <<A
+    default     dingtalk___$O
+    --title   "Provide title" =~      *
+    --text    "Provide text"  =~      *
+    --atall -a  "Notify all member of the group" =FLAG
+    --orientation=1   "Buttons Placenment. 0=vertical. 1=horizontal" = 0 1
+    --linktitle       "Link title" =~      *
+    --linkurl         "link url"   =~      *
+A
+    
+    local O=${O:-default}
+    dingtalk_bot_send << EOM 
+'{
+    "msgtype": "actionCard",
+    "actionCard": {
+        "title": "$title",
+        "text":  "$text",
+        "btnOrientation": "$orientation",
+        "singleTitle" :   "$linktitle",
+        "singleURL" :     "$linkurl"
+    },
+    "at": {
+        "isAtAll": $atall
+    }
+}'
+EOM
+
+}
+
+dingtalk_bot_send_multiple_action_card_msg(){
+
+    param <<A
+    default     dingtalk___$O
+    --title "Provide title"  =~      *
+    --text  "Provide text"   =~      *
+    --orientation=0 "button orientation 0 = vertical, 1=horizontal, default is 0" =int 0 1
+    ... "Provide multiple action card in following format. [ <title> <action-url> ] ..." =~ *
+A
+
+    local actionTitle 
+    local url
+    local item 
+    local all=""
+
+    while [ $# -gt 0 ]; do
+        actionTitle="$1"
+        url="$2"
+        item="{ \"title\": \"$actionTitle\", \"actionURL\": \"$url\" }"
+        all="${all:+"$all,"}$item"
+        shift 2
+    done
+
+    local allMobiles i
+    for i in "${at[@]}"; do
+        allMobiles+=,\"$i\"
+    done
+    allMobiles=${allMobiles:1}
+
+    local IFS=','
+    dingtalk_bot_send << EOM 
+'{
+    "msgtype": "actionCard",
+    "actionCard": {
+        "title": "${title:?"Please provide content"}",
+        "text": "${text:?"Please provide content"}",
+        "btnOrientation": "${orientation}",
+        "btns": [
+            $all
+        ]
+    },
+    "at": {
+        "atMobiles": [ "${allMobiles}" ]
+        "isAtAll": $atall
+    }
+}'
+EOM
+
+}
+
+dingtalk_bot_feed_card_msg(){
+
+    param <<A
+    default     dingtalk___$O
+    --title "Provide title"      =~      *
+    --msgurl "Provide msg url"   =~      *
+    --picurl "Provide msg url"   =~      *
+    ... "Provide multiple action card in following format. [ <title> <message-url> <picture-url> ] ..." =~ *
+A
+
+    dingtalk_bot_send << EOM
+'{
+    "msgtype": "feedCard",
+    "feedCard": {
+        "links": [
+            ${all[*]}
+        ]
+    }
+}'
+EOM
+
+}
