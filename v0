@@ -10,7 +10,7 @@
 xrc param/v0
 
 # Reference
-# https://ding-doc.dingtalk.com/document#/isv-dev-guide/message-types-and-data-format#topic-2618201
+# https://ding-doc.qywx.com/document#/isv-dev-guide/message-types-and-data-format#topic-2618201
 
 qywx_bot(){
     local op
@@ -21,84 +21,88 @@ qywx_bot(){
         shift
     fi
     case "$op" in
-        endpoint)               http_make       "$@" ;;
-        browse)             http_browse     "$@" ;;
-        dict|property)      http_dict       "$@" ;;
-        cd)                 http_cd         "$@" ;;
-        path)               http_path       "$@" ;;
-        qs)                 http_qs         "$@" ;;
-        header)             http_header     "$@" ;;
-
-        req|request)        http_request    "$@" ;;
-        head)               http_head       "$@" ;;
-        get)                http_get        "$@" ;;
-        post)               http_post       "$@" ;;
-        put)                http_put        "$@" ;;
-        delete)             http_delete     "$@" ;;
-
-        graphql|gq)         http_graphql    "$@" ;;
-
-        resp|response)      http_resp       "$@" ;;
+        make)               qywx_bot_make       "$@" ;;
+        endpoint)           qywx_bot_endpoint   "$@" ;;
+        config)             qywx_bot_config     "$@" ;;
+        send|sendmsg)       qywx_bot_send       "$@" ;;
     esac
 }
 
-dingtalk_bot_endpoint(){
-    local O=${O:-DINGTALK_DEFAULT} 
+qywx_bot_send(){
+    local op
+    if [ $# -eq 0 ]; then
+        op=help
+    else
+        op="${1}"
+        shift
+    fi
+    case "$op" in
+        markdown)           qywx_bot_send_markdown_msg                  "$@" ;;
+        text)               qywx_bot_send_text_msg                      "$@" ;;
+        link)               qywx_bot_send_link_msg                      "$@" ;;
+        action|actioncard)  qywx_bot_send_action_card_msg               "$@" ;;
+        actioncards)        qywx_bot_send_multiple_action_card_msg      "$@" ;;
+        feedcard)           qywx_bot_send_feed_card_msg                 "$@" ;;
+    esac
+}
+
+qywx_bot_endpoint(){
+    local O=${O:-qywx_DEFAULT} 
     local endpoint
 
     # set
     if [ -n "$1" ]; then 
-        param_default put "dingtalk_$O" "endpoint" "$1"
+        param_default put "qywx_$O" "endpoint" "$1"
         return 0
     fi
 
     # get
-    endpoint="$(param_default get "dingtalk_$O" "endpoint")"
+    endpoint="$(param_default get "qywx_$O" "endpoint")"
     if [ -z "$endpoint" ]; then
-        dingtalk_bot_config load && endpoint="$(param_default get "dingtalk_$O" "endpoint")"
+        qywx_bot_config load && endpoint="$(param_default get "qywx_$O" "endpoint")"
     fi
 
     [ -z "$endpoint" ] && return 1
     echo "$endpoint"
 }
 
-# dingtalk_bot_endpoint "$DINGTALK_ENDPOINT"
+# qywx_bot_endpoint "$qywx_ENDPOINT"
 
-dingtalk_bot_make(){
-    local O="${O:-DINGTALK_DEFAULT}"
+qywx_bot_make(){
+    local O="${O:-qywx_DEFAULT}"
 
     # local O=${1:?Provide bot name}
     # echo $O
     # echo $1
 
     if [ -n "$1" ]; then
-        dingtalk_bot_endpoint "$1"
+        qywx_bot_endpoint "$1"
     fi
 }
 
-# dingtalk_bot_new(){
-#     oo.create_new_function dingtalk.bot "$@"
+# qywx_bot_new(){
+#     oo.create_new_function qywx.bot "$@"
 # }
 
-dingtalk_bot_config() {
-    local O="${O:-DINGTALK_DEFAULT}"
+qywx_bot_config() {
+    local O="${O:-qywx_DEFAULT}"
     local op="$1"
     shift
-    local path="${1:-$HOME/.x-cmd.com/config/x-bash/app.dingtalk.config/$O}"
+    local path="${1:-$HOME/.x-cmd.com/config/x-bash/app.qywx.config/$O}"
     case "$op" in
     which)
-        echo "$HOME/.x-cmd.com/config/x-bash/app.dingtalk.config/$O"
+        echo "$HOME/.x-cmd.com/config/x-bash/app.qywx.config/$O"
         ;;
     save)
         mkdir -p "$(dirname "$path")"
-        param_default dump "dingtalk_$O" >"$path"
+        param_default dump "qywx_$O" >"$path"
         echo "Config $O saved in path: $path" >&2
         ;;
     load)
-        param_default load "dingtalk_$O" "$path"
+        param_default load "qywx_$O" "$path"
         echo "Config $O load from path: $path" >&2
-        endpoint="$(param_default get "dingtalk_$O" "endpoint")"
-        dingtalk_bot_endpoint "$endpoint"
+        endpoint="$(param_default get "qywx_$O" "endpoint")"
+        qywx_bot_endpoint "$endpoint"
         ;;
     *)
         echo "Provide config operation type which|save|load"
@@ -107,26 +111,26 @@ dingtalk_bot_config() {
 }
 
 # shellcheck disable=SC2120
-dingtalk_bot_send(){
-    local O=${O:-DINGTALK_DEFAULT}
+qywx_bot_send_json(){
+    local O=${O:-qywx_DEFAULT}
     local json="$1"
     if [ -z "$json" ]; then
         json="$(cat)"
     fi
 
-    echo curl "$(dingtalk_bot_endpoint)" \
+    echo curl "$(qywx_bot_endpoint)" \
         -H 'Content-Type:application/json' \
         -d "$json"
 
-    # dingtalk.debug curl "$(dingtalk.bot.endpoint)" \
+    # qywx.debug curl "$(qywx.bot.endpoint)" \
     #     -H 'Content-Type:application/json' \
     #     -d "$json"
 }
 
-dingtalk_bot_send_text_msg(){
+qywx_bot_send_text_msg(){
     
     param <<A
-    default     dingtalk___$O
+    default     qywx___$O
     --text      "Provide text" =~      *
     --atall -a  "Notify all member of the group" =FLAG
 A
@@ -142,7 +146,7 @@ A
     #     --atall -a "Notify all member of the group"
     # '
 
-    dingtalk_bot_send << EOM
+    qywx_bot_send_json << EOM
 '{
     "msgtype": "text",
     "text": {
@@ -156,16 +160,16 @@ A
 EOM
 }
 
-dingtalk_bot_send_link_msg(){
+qywx_bot_send_link_msg(){
     param <<A
-    default     dingtalk___$O
+    default     qywx___$O
     --title   "Provide title"     =~      *
     --text    "Provide text"      =~      *
     --picurl  "Provide picurl"    =~      *
     --msgurl  "Provide msgurl"    =~      *
 A
     
-    dingtalk_bot_send << EOM
+    qywx_bot_send_json << EOM
 '{
     "msgtype": "link",
     "link": {
@@ -179,9 +183,9 @@ EOM
 
 }
 
-dingtalk_bot_send_markdown_msg(){
+qywx_bot_send_markdown_msg(){
     param <<A
-    default     dingtalk___$O
+    default     qywx___$O
     --title "Provide title"    =~ *
     --text  "Provide text"     =~ *
     --atall -a  "Notify all member of the group" =FLAG
@@ -189,7 +193,7 @@ A
 
     # TODO: Check this code
 
-    dingtalk_bot_send << EOM
+    qywx_bot_send_json << EOM
 '{
     "msgtype": "markdown",
     "markdown": {
@@ -204,9 +208,9 @@ A
 EOM
 }
 
-dingtalk_bot_send_action_card_msg(){
+qywx_bot_send_action_card_msg(){
     param <<A
-    default     dingtalk___$O
+    default     qywx___$O
     --title   "Provide title" =~      *
     --text    "Provide text"  =~      *
     --atall -a  "Notify all member of the group" =FLAG
@@ -216,7 +220,7 @@ dingtalk_bot_send_action_card_msg(){
 A
     
     local O=${O:-default}
-    dingtalk_bot_send << EOM 
+    qywx_bot_send_json << EOM 
 '{
     "msgtype": "actionCard",
     "actionCard": {
@@ -234,10 +238,10 @@ EOM
 
 }
 
-dingtalk_bot_send_multiple_action_card_msg(){
+qywx_bot_send_multiple_action_card_msg(){
 
     param <<A
-    default     dingtalk___$O
+    default     qywx___$O
     --title "Provide title"  =~      *
     --text  "Provide text"   =~      *
     --orientation=0 "button orientation 0 = vertical, 1=horizontal, default is 0" =int 0 1
@@ -264,7 +268,7 @@ A
     allMobiles=${allMobiles:1}
 
     local IFS=','
-    dingtalk_bot_send << EOM 
+    qywx_bot_send_json << EOM 
 '{
     "msgtype": "actionCard",
     "actionCard": {
@@ -284,17 +288,17 @@ EOM
 
 }
 
-dingtalk_bot_feed_card_msg(){
+qywx_bot_send_feed_card_msg(){
 
     param <<A
-    default     dingtalk___$O
+    default     qywx___$O
     --title "Provide title"      =~      *
     --msgurl "Provide msg url"   =~      *
     --picurl "Provide msg url"   =~      *
     ... "Provide multiple action card in following format. [ <title> <message-url> <picture-url> ] ..." =~ *
 A
 
-    dingtalk_bot_send << EOM
+    qywx_bot_send_json << EOM
 '{
     "msgtype": "feedCard",
     "feedCard": {
