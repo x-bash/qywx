@@ -10,7 +10,7 @@
 xrc param/v0
 
 # Reference
-# https://ding-doc.qywx.com/document#/isv-dev-guide/message-types-and-data-format#topic-2618201
+# https://open.work.weixin.qq.com/api/doc/90000/90135/90239
 
 qywx_bot(){
     local op
