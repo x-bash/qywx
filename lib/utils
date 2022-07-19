@@ -1,0 +1,12 @@
+# shellcheck shell=sh
+# shellcheck disable=SC2039,3043
+
+############################
+# Section 2: Wrapping std/http module with object naming changing
+############################
+___x_cmd_qywx_http(){
+    if ! O="${O:-___x_cmd_qywx_QYWX_DEFAULT}" ___x_cmd_http header get Content-Type 1>/dev/null 2>&1; then
+         O="${O:-___x_cmd_qywx_QYWX_DEFAULT}" ___x_cmd_http header put Content-Type application/json
+    fi
+    O="${O:-___x_cmd_qywx_QYWX_DEFAULT}" ___x_cmd_http "$@"
+}

@@ -1,6 +1,55 @@
 # shellcheck shell=sh
+# shellcheck disable=SC2039,3043
 
-# author:       Li Junhao           l@x-cmd.com    edwinjhlee.github.io
+# author:       Li Junhao           edwin.jh.lee@gmail.com    edwinjhlee.github.io
 # maintainer:   Li Junhao
+xrc param http
+xrc ui/lib/table
+xrc:inner:lib qywx utils auth  member department
+x log init qywx
+# Reference
+# https://open.work.weixin.qq.com/api/doc/90000/90135/90239
+___x_cmd_qywx(){
+    param:subcmd ___x_cmd_qywx          \
+        auth            "Manage qywx authentication state"  \
+        member          "member manage"                     \
+        department      "department manage"             
+    param:subcmd:try
+    param:run
 
-xrc param/v0
+    ___x_cmd_qywx _param_help_doc
+    qywx_log warn "Subcmd Not Found."
+    return 1
+}
+
+___x_cmd_qywx_make(){
+    param:void
+
+    local O="___x_cmd_qywx_${1:?Provide client name by O environment}"
+
+    ___x_cmd_http make  'https://qyapi.weixin.qq.com'
+    ___x_cmd_http header put type  "application/json;charset=utf-8"
+
+    local token
+    # token="$(___x_cmd_qywx_config_get "oauth_token")"
+
+    if [ -n "$token" ]; then
+        ___x_cmd_qywx_current_owner 1>/dev/null || return 1
+        qywx_log info "Hi $___X_CMD_QYWX_DEFAULT_OWNER! You've successfully authenticated."
+        return 0
+    fi
+
+    # local info
+    # info=$(printf "\n%s %s \n%s" \
+    #      "$(___x_cmd_ui yellow 'You need run command to add token:')" \
+    #      "$(___x_cmd_ui bold cyan "\`qywx auth login\`")" \
+    #      "$(___x_cmd_ui 'https://developer.work.weixin.qq.com/document/path/91039')")
+    # qywx_log warn "Token is null.${info}"
+}
+
+if [ -z "$DO_NOT_INIT_QYWX_DEFAULT" ]; then
+    ___x_cmd_qywx_make "QYWX_DEFAULT" && DO_NOT_INIT_QYWX_DEFAULT="true"
+fi
+
+xrc setmain ___x_cmd_qywx
+
